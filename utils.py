@@ -1,8 +1,13 @@
+import json
 import pickle
 import requests
 import zipfile
 import re
 
+
+def save_json_file(obj, name):
+    with open(name + ".json", 'w') as f:
+        json.dump(obj, f)
 
 
 def save_obj(obj, name):
