@@ -5,11 +5,11 @@ from reader import ReadFile
 from configuration import ConfigClass
 from parser_module import Parse
 from indexer import Indexer
-from searcher import Searcher, Spell_Searcher, WordNet_Searcher, Thesaurus_Searcher
+from searcher import Searcher, Spell_Searcher, WordNet_Searcher
 
 
 # DO NOT CHANGE THE CLASS NAME
-class SearchEngine1:
+class SearchEngine2:
 
     # DO NOT MODIFY THIS SIGNATURE
     # You can change the internal implementation, but you must have a parser and an indexer.
@@ -21,7 +21,7 @@ class SearchEngine1:
             self._reader = ReadFile("")
         self._parser = Parse()
         self._indexer = Indexer(config)
-        self._model = Thesaurus_Searcher(self._indexer)
+        self._model = WordNet_Searcher(self._indexer)
         self.last_parquet = False
 
     # DO NOT MODIFY THIS SIGNATURE
@@ -98,27 +98,25 @@ class SearchEngine1:
                 csv_list.append(csv_line)
             break
 
-        with open('thesaurus_engine_results.csv', 'w', newline='') as file:
+        with open('wordNet_engine_results.csv', 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(csv_list)
 
         self.calculate_metrics()
 
     def calculate_metrics(self):
-        our_results = pd.read_csv("thesaurus_engine_results.csv")
+        our_results = pd.read_csv("wordNet_engine_results.csv")
         bench_mark = pd.read_csv(os.path.join('data', 'benchmark_lbls_train.csv'))
 
         for idx, tweet_id in enumerate(our_results["tweet"]):
             row_bench = bench_mark.loc[bench_mark["tweet"] == tweet_id]
             row_results = our_results.loc[our_results["tweet"] == tweet_id]
 
-            print(row_bench["query"].iloc[0])
-            print(row_results["query"].iloc[0])
             if row_bench["query"].iloc[0] == row_results["query"].iloc[0]:
                 rank = row_bench["y_true"].iloc[0]
                 our_results.at[idx, "y_true"] = rank
 
-        our_results.to_csv("thesaurus_engine_results.csv", index=False)
+        our_results.to_csv("wordNet_engine_results.csv", index=False)
 
 
 def main():
@@ -129,7 +127,7 @@ def main():
 
     config = ConfigClass()
     reader = ReadFile(config.get__corpusPath())
-    search_engine = SearchEngine1(config)
+    search_engine = SearchEngine2(config)
     corpus_list = reader.read_corpus()
 
     # for idx, parquet in enumerate(corpus_list):

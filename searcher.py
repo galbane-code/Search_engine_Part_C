@@ -1,13 +1,15 @@
 import math
 import time
 
+import nltk
 from spellchecker import SpellChecker
 
 from ranker import Ranker
-import nltk
 # nltk.download('lin_thesaurus')
+# nltk.download('wordnet')
 from nltk.corpus import lin_thesaurus as thesaurus
-word_list_thesaurus = thesaurus.synonyms("box")
+from nltk.corpus import wordnet
+load_thesaurus = thesaurus.synonyms("box")
 
 # DO NOT MODIFY CLASS NAME
 class Searcher:
@@ -56,10 +58,10 @@ class Searcher:
         :param query_as_list: parsed query tokens
         :return: dictionary of relevant documents mapping doc_id to document frequency.
         """
-        try:
-            self._model.query_expansion(query_object)
-        except:
-            pass
+        # try:
+        self._model.query_expansion(query_object)
+        # except:
+        #     pass
 
         query_dict = query_object.query_dict
         for term in query_dict:
@@ -228,7 +230,7 @@ class Thesaurus_Searcher:
             word_list_thesaurus = thesaurus.synonyms("box")
             if word_list_thesaurus:
                 lst = list(word_list_thesaurus[1][1])
-                s = lst[0]
+
                 word_to_switch = [word_list_thesaurus[0][0], word_list_thesaurus[1][0], word_list_thesaurus[2][0]]
                 for words in word_to_switch:
                     if words in self._indexer.inverted_idx:
@@ -238,18 +240,49 @@ class Thesaurus_Searcher:
                 query.query_length = query_length
 
 
+class WordNet_Searcher:
 
+    def __init__(self, indexer):
+        self._indexer = indexer
 
+    def query_expansion(self, query):
 
+        query_dict = query.query_dict
+        query_length = query.query_length
+        syn = set()
+        ant = set()
 
+        wordnet_list = wordnet.synsets("Worse")
+        for word in query_dict.keys():
+            wordnet_list = wordnet.synsets("Worse")
+            for synset in wordnet_list:
 
+                lemma = synset.lemmas()[0]
+                if lemma.name().lower() != word.lower():
+                    # print('Similarity of {} and {}: '.format("worse", lemma.name()) + str(wordnet.synset("worse.n.01").wup_similarity(synset)))
 
+                    syn.add(lemma.name())  # add the synonyms
+                if lemma.antonyms():  # When antonyms are available, add them into the list
+                    ant.add(lemma.antonyms()[0].name())
 
+            # for i in syn:
+            #     synset_word = wordnet.synset("worse" + ".n.01")
+            #     synset_syn = wordnet.synset(i + ".n.01")
+            #     print('Similarity of {} and {}: '.format("worse", i) + str(synset_word.wup_similarity(synset_syn)))
+            #
+            # for i in ant:
+            #     synset_word = wordnet.synset("worse" + ".n.01")
+            #     synset_syn = wordnet.synset(i + ".n.01")
+            #     print('Similarity of {} and {}: '.format("worse", i) + str(synset_word.wup_similarity(synset_syn)))
+            x = 5
 
+            # first_word = wordnet.synset("better.n.01")
+            # second_word = wordnet.synset("worse.n.01")
+            # print('Similarity: ' + str(first_word.wup_similarity(second_word)))
 
-
-
-
-
-
-
+                # for words in word_to_switch:
+                #     if words in self._indexer.inverted_idx:
+                #         query_dict[words] = query_dict[word]
+                #         query_length += 1
+                #
+                # query.query_length = query_length
