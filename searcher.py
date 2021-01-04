@@ -1,9 +1,13 @@
 import math
+import time
 
 from spellchecker import SpellChecker
-from ranker import Ranker
-import utils
 
+from ranker import Ranker
+import nltk
+# nltk.download('lin_thesaurus')
+from nltk.corpus import lin_thesaurus as thesaurus
+word_list_thesaurus = thesaurus.synonyms("box")
 
 # DO NOT MODIFY CLASS NAME
 class Searcher:
@@ -18,9 +22,9 @@ class Searcher:
         self._ranker = Ranker()
         self._model = model
         self._docs_dict = {}
-        self.number_of_documents = len(indexer.inverted_idx)
+        self.number_of_documents = len(indexer.docs_dict)
 
-        self.spell = SpellChecker(local_dictionary='spell_dict.json', distance=1)
+        # self.spell = SpellChecker(local_dictionary='spell_dict.json', distance=1)
 
     # DO NOT MODIFY THIS SIGNATURE
     # You can change the internal implementation as you see fit.
@@ -41,8 +45,8 @@ class Searcher:
         relevant_docs = self._relevant_docs_from_posting(query_object)
         normalized_query = self.normalized_query(query_object)
         n_relevant = len(relevant_docs)
-        ranked_doc_ids = Ranker.rank_relevant_docs(relevant_docs, normalized_query, self._indexer.docs_dict)
-        return n_relevant, ranked_doc_ids
+        ranked_doc_ids = Ranker.rank_relevant_docs(relevant_docs, normalized_query, self._indexer.docs_dict, k)
+        return ranked_doc_ids
 
     # feel free to change the signature and/or implementation of this function 
     # or drop altogether.
@@ -52,8 +56,12 @@ class Searcher:
         :param query_as_list: parsed query tokens
         :return: dictionary of relevant documents mapping doc_id to document frequency.
         """
+        try:
+            self._model.query_expansion(query_object)
+        except:
+            pass
+
         query_dict = query_object.query_dict
-        query_dict = self.spell_correction(query_dict)
         for term in query_dict:
             if term in self._indexer.inverted_idx:
                 continue
@@ -75,52 +83,51 @@ class Searcher:
 
         query_object.query_dict = query_dict
 
-        print(self._docs_dict)
         return self._docs_dict
 
-    def spell_correction(self, query_dict):
-        """
-        This function finds a misspelled word and finds its closest similarity.
-        first by tracking all of its candidates. the candidate with the most appearances in the inverted index
-        will be the "replacer"
-        :param query: query dictionary
-        :return: query dictionary with replaced correct words.
-        """
-
-        for term in query_dict:
-
-            if term.lower() not in self._indexer.inverted_idx and term.upper() not in self._indexer.inverted_idx:
-
-                misspelled_checker = self.spell.unknown([term])
-
-                if len(misspelled_checker) != 0:
-                    candidates = list(self.spell.edit_distance_1(term))
-
-                    super_candidates = list(self.spell.candidates(term))
-                    candidates.extend(super_candidates)
-
-                    max_freq_in_corpus = 0
-                    max_freq_name = ''
-
-                    for i, candidate in enumerate(candidates):
-                        if candidate in self._indexer.inverted_idx:
-                            curr_freq = self._indexer.inverted_idx[candidate][0]
-                            if curr_freq > max_freq_in_corpus:
-                                max_freq_in_corpus = curr_freq
-                                max_freq_name = candidate
-
-                        elif candidate.upper() in self._indexer.inverted_idx:
-                            curr_freq = self._indexer.inverted_idx[candidate.upper()][0]
-                            if curr_freq > max_freq_in_corpus:
-                                max_freq_in_corpus = curr_freq
-                                max_freq_name = candidate
-
-                    if max_freq_name != '':
-                        query_dict[max_freq_name] = query_dict.pop(term)
-                    else:
-                        continue
-
-        return query_dict
+    # def spell_correction(self, query_dict):
+    #     """
+    #     This function finds a misspelled word and finds its closest similarity.
+    #     first by tracking all of its candidates. the candidate with the most appearances in the inverted index
+    #     will be the "replacer"
+    #     :param query: query dictionary
+    #     :return: query dictionary with replaced correct words.
+    #     """
+    #
+    #     for term in query_dict:
+    #
+    #         if term.lower() not in self._indexer.inverted_idx and term.upper() not in self._indexer.inverted_idx:
+    #
+    #             misspelled_checker = self.spell.unknown([term])
+    #
+    #             if len(misspelled_checker) != 0:
+    #                 candidates = list(self.spell.edit_distance_1(term))
+    #
+    #                 super_candidates = list(self.spell.candidates(term))
+    #                 candidates.extend(super_candidates)
+    #
+    #                 max_freq_in_corpus = 0
+    #                 max_freq_name = ''
+    #
+    #                 for i, candidate in enumerate(candidates):
+    #                     if candidate in self._indexer.inverted_idx:
+    #                         curr_freq = self._indexer.inverted_idx[candidate][0]
+    #                         if curr_freq > max_freq_in_corpus:
+    #                             max_freq_in_corpus = curr_freq
+    #                             max_freq_name = candidate
+    #
+    #                     elif candidate.upper() in self._indexer.inverted_idx:
+    #                         curr_freq = self._indexer.inverted_idx[candidate.upper()][0]
+    #                         if curr_freq > max_freq_in_corpus:
+    #                             max_freq_in_corpus = curr_freq
+    #                             max_freq_name = candidate
+    #
+    #                 if max_freq_name != '':
+    #                     query_dict[max_freq_name] = query_dict.pop(term)
+    #                 else:
+    #                     continue
+    #
+    #     return query_dict
 
     def document_dict_init(self, postingDict, query_length):
         tf_idf_list = [0] * query_length
@@ -156,3 +163,93 @@ class Searcher:
             normalized.append(tf / max_freq_term)
 
         return normalized
+
+
+class Spell_Searcher:
+    def __init__(self, indexer):
+        self._indexer = indexer
+        self.spell = SpellChecker(local_dictionary='spell_dict.json', distance=1)
+
+    def query_expansion(self, query):
+        """
+        This function finds a misspelled word and finds its closest similarity.
+        first by tracking all of its candidates. the candidate with the most appearances in the inverted index
+        will be the "replacer"
+        :param query: query dictionary
+        :return: query dictionary with replaced correct words.
+        """
+
+        query_dict = query.query_dict
+        for term in query_dict:
+
+            if term.lower() not in self._indexer.inverted_idx and term.upper() not in self._indexer.inverted_idx:
+
+                misspelled_checker = self.spell.unknown([term])
+
+                if len(misspelled_checker) != 0:
+                    candidates = list(self.spell.edit_distance_1(term))
+
+                    super_candidates = list(self.spell.candidates(term))
+                    candidates.extend(super_candidates)
+
+                    max_freq_in_corpus = 0
+                    max_freq_name = ''
+
+                    for i, candidate in enumerate(candidates):
+                        if candidate in self._indexer.inverted_idx:
+                            curr_freq = self._indexer.inverted_idx[candidate][0]
+                            if curr_freq > max_freq_in_corpus:
+                                max_freq_in_corpus = curr_freq
+                                max_freq_name = candidate
+
+                        elif candidate.upper() in self._indexer.inverted_idx:
+                            curr_freq = self._indexer.inverted_idx[candidate.upper()][0]
+                            if curr_freq > max_freq_in_corpus:
+                                max_freq_in_corpus = curr_freq
+                                max_freq_name = candidate
+
+                    if max_freq_name != '':
+                        query_dict[max_freq_name] = query_dict.pop(term)
+                    else:
+                        continue
+
+
+class Thesaurus_Searcher:
+
+    def __init__(self, indexer):
+        self._indexer = indexer
+
+    def query_expansion(self, query):
+
+        query_dict = query.query_dict
+        query_length = query.query_length
+
+        for word in query_dict.keys():
+            word_list_thesaurus = thesaurus.synonyms("box")
+            if word_list_thesaurus:
+                lst = list(word_list_thesaurus[1][1])
+                s = lst[0]
+                word_to_switch = [word_list_thesaurus[0][0], word_list_thesaurus[1][0], word_list_thesaurus[2][0]]
+                for words in word_to_switch:
+                    if words in self._indexer.inverted_idx:
+                        query_dict[words] = query_dict[word]
+                        query_length += 1
+
+                query.query_length = query_length
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
