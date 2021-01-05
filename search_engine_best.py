@@ -86,12 +86,12 @@ class SearchEngine:
 
     def read_queries(self, queries_path, k=None):
         queries_df = pd.read_csv(queries_path, sep='\t')
-        queries_only = queries_df["information_need"]
+        queries_only = queries_df["keywords"]
         queries_id = queries_df["query_id"]
 
         csv_list = [['query', 'tweet', 'y_true']]
         for i, query in enumerate(queries_only):
-            tweets = self.search(query)
+            length_of_results, tweets = self.search(query)
             query_num = queries_id[i]
             for tweet in tweets:
                 csv_line = [query_num, tweet, -1]
@@ -132,10 +132,10 @@ def main():
     search_engine = SearchEngine(config)
     corpus_list = reader.read_corpus()
 
-    # for idx, parquet in enumerate(corpus_list):
-    #     if idx == len(corpus_list) - 1:
-    #         search_engine.last_parquet = True
-    #     search_engine.build_index_from_parquet(parquet)
-    search_engine.load_index("inverted_idx")
+    for idx, parquet in enumerate(corpus_list):
+        if idx == len(corpus_list) - 1:
+            search_engine.last_parquet = True
+        search_engine.build_index_from_parquet(parquet)
+    search_engine.load_index("idx_bench")
     search_engine.read_queries(queries_path)
 

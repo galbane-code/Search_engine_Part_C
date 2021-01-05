@@ -10,7 +10,7 @@ class ConfigClass:
         # model file with every submission.
         self._download_model = False
 
-        self.corpusPath = 'data'
+        self.corpusPath = ''
         self.savedFileMainFolder = ''
         self.saveFilesWithStem = self.savedFileMainFolder + "/WithStem"
         self.saveFilesWithoutStem = self.savedFileMainFolder + "/WithoutStem"

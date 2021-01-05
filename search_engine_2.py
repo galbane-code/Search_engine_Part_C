@@ -5,11 +5,11 @@ from reader import ReadFile
 from configuration import ConfigClass
 from parser_module import Parse
 from indexer import Indexer
-from searcher import Searcher, Spell_Searcher, WordNet_Searcher
+from searcher import Searcher, WordNet_Searcher
 
 
 # DO NOT CHANGE THE CLASS NAME
-class SearchEngine2:
+class SearchEngine:
 
     # DO NOT MODIFY THIS SIGNATURE
     # You can change the internal implementation, but you must have a parser and an indexer.
@@ -86,12 +86,12 @@ class SearchEngine2:
 
     def read_queries(self, queries_path, k=None):
         queries_df = pd.read_csv(queries_path, sep='\t')
-        queries_only = queries_df["information_need"]
+        queries_only = queries_df["keywords"]
         queries_id = queries_df["query_id"]
 
         csv_list = [['query', 'tweet', 'y_true']]
         for i, query in enumerate(queries_only):
-            tweets = self.search(query)
+            length_of_results, tweets = self.search(query)
             query_num = queries_id[i]
             for tweet in tweets:
                 csv_line = [query_num, tweet, -1]
@@ -124,16 +124,16 @@ def main():
     bench_lbls_path = os.path.join('data', 'benchmark_lbls_train.csv')
     queries_path = os.path.join('data', 'queries_train.tsv')
 
-
     config = ConfigClass()
     reader = ReadFile(config.get__corpusPath())
-    search_engine = SearchEngine2(config)
+    search_engine = SearchEngine(config)
     corpus_list = reader.read_corpus()
 
-    # for idx, parquet in enumerate(corpus_list):
-    #     if idx == len(corpus_list) - 1:
-    #         search_engine.last_parquet = True
-    #     search_engine.build_index_from_parquet(parquet)
-    search_engine.load_index("inverted_idx")
+    for idx, parquet in enumerate(corpus_list):
+        if idx == len(corpus_list) - 1:
+            search_engine.last_parquet = True
+        search_engine.build_index_from_parquet(parquet)
+
+    search_engine.load_index("idx_bench")
     search_engine.read_queries(queries_path)
 

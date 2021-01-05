@@ -29,7 +29,6 @@ class Parse:
                                'rt', r'!', r'?', r',', r':', r';', r'(', r')', r'...', r'[', ']', r'{', '}' "'&'", '$',
                                '.', r'\'s', '\'s', '\'d', r'\'d', r'n\'t','1️⃣.1️⃣2️⃣' ]
 
-
         self.additional = {"twitter.com", "web", "status", "i", r'i'}
         self.stop_words.extend(self.our_stop_words)
         self.stop_words_dict = dict.fromkeys(self.stop_words)

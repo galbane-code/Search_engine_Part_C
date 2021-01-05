@@ -3,13 +3,13 @@ import time
 
 import nltk
 from spellchecker import SpellChecker
-
+from nltk import pos_tag
 from ranker import Ranker
 # nltk.download('lin_thesaurus')
 # nltk.download('wordnet')
+# nltk.download('averaged_perceptron_tagger')
 from nltk.corpus import lin_thesaurus as thesaurus
 from nltk.corpus import wordnet
-load_thesaurus = thesaurus.synonyms("box")
 
 # DO NOT MODIFY CLASS NAME
 class Searcher:
@@ -25,8 +25,6 @@ class Searcher:
         self._model = model
         self._docs_dict = {}
         self.number_of_documents = len(indexer.docs_dict)
-
-        # self.spell = SpellChecker(local_dictionary='spell_dict.json', distance=1)
 
     # DO NOT MODIFY THIS SIGNATURE
     # You can change the internal implementation as you see fit.
@@ -48,7 +46,7 @@ class Searcher:
         normalized_query = self.normalized_query(query_object)
         n_relevant = len(relevant_docs)
         ranked_doc_ids = Ranker.rank_relevant_docs(relevant_docs, normalized_query, self._indexer.docs_dict, k)
-        return ranked_doc_ids
+        return n_relevant, ranked_doc_ids
 
     # feel free to change the signature and/or implementation of this function 
     # or drop altogether.
@@ -58,10 +56,10 @@ class Searcher:
         :param query_as_list: parsed query tokens
         :return: dictionary of relevant documents mapping doc_id to document frequency.
         """
-        # try:
-        self._model.query_expansion(query_object)
-        # except:
-        #     pass
+        try:
+            self._model.query_expansion(query_object)
+        except:
+            pass
 
         query_dict = query_object.query_dict
         for term in query_dict:
@@ -86,50 +84,6 @@ class Searcher:
         query_object.query_dict = query_dict
 
         return self._docs_dict
-
-    # def spell_correction(self, query_dict):
-    #     """
-    #     This function finds a misspelled word and finds its closest similarity.
-    #     first by tracking all of its candidates. the candidate with the most appearances in the inverted index
-    #     will be the "replacer"
-    #     :param query: query dictionary
-    #     :return: query dictionary with replaced correct words.
-    #     """
-    #
-    #     for term in query_dict:
-    #
-    #         if term.lower() not in self._indexer.inverted_idx and term.upper() not in self._indexer.inverted_idx:
-    #
-    #             misspelled_checker = self.spell.unknown([term])
-    #
-    #             if len(misspelled_checker) != 0:
-    #                 candidates = list(self.spell.edit_distance_1(term))
-    #
-    #                 super_candidates = list(self.spell.candidates(term))
-    #                 candidates.extend(super_candidates)
-    #
-    #                 max_freq_in_corpus = 0
-    #                 max_freq_name = ''
-    #
-    #                 for i, candidate in enumerate(candidates):
-    #                     if candidate in self._indexer.inverted_idx:
-    #                         curr_freq = self._indexer.inverted_idx[candidate][0]
-    #                         if curr_freq > max_freq_in_corpus:
-    #                             max_freq_in_corpus = curr_freq
-    #                             max_freq_name = candidate
-    #
-    #                     elif candidate.upper() in self._indexer.inverted_idx:
-    #                         curr_freq = self._indexer.inverted_idx[candidate.upper()][0]
-    #                         if curr_freq > max_freq_in_corpus:
-    #                             max_freq_in_corpus = curr_freq
-    #                             max_freq_name = candidate
-    #
-    #                 if max_freq_name != '':
-    #                     query_dict[max_freq_name] = query_dict.pop(term)
-    #                 else:
-    #                     continue
-    #
-    #     return query_dict
 
     def document_dict_init(self, postingDict, query_length):
         tf_idf_list = [0] * query_length
@@ -220,24 +174,60 @@ class Thesaurus_Searcher:
 
     def __init__(self, indexer):
         self._indexer = indexer
+        w = thesaurus.synonyms("")
 
     def query_expansion(self, query):
-
         query_dict = query.query_dict
         query_length = query.query_length
 
+        thes_dict = {}
+
         for word in query_dict.keys():
-            word_list_thesaurus = thesaurus.synonyms("box")
+            thes_dict[word] = query_dict[word]
+            text = [word]
+            word_pos = nltk.pos_tag(text)
+            word_pos = self.tag(word_pos[0][1])
+
+            word_list_thesaurus = thesaurus.synonyms(word)
+
             if word_list_thesaurus:
-                lst = list(word_list_thesaurus[1][1])
 
-                word_to_switch = [word_list_thesaurus[0][0], word_list_thesaurus[1][0], word_list_thesaurus[2][0]]
-                for words in word_to_switch:
-                    if words in self._indexer.inverted_idx:
-                        query_dict[words] = query_dict[word]
-                        query_length += 1
+                word_to_switch_list = []
+                max_counter = 10
+                chosen_words = []
 
-                query.query_length = query_length
+                if word_pos == "ADJ":
+                    word_to_switch_list = word_list_thesaurus[0][1]
+                elif word_pos == "NOUN" or word_pos == "PROPN":
+                    word_to_switch_list = word_list_thesaurus[1][1]
+                elif word_pos == "VERB":
+                    word_to_switch_list = word_list_thesaurus[2][1]
+
+                for token in word_to_switch_list:
+                    if len(chosen_words) == max_counter:
+                        break
+                    split_token = token.split(" ")
+                    if len(split_token) > 1:
+                        continue
+
+                    if token in self._indexer.inverted_idx and token not in query_dict.keys():
+                        chosen_words.append(token)
+
+                for words in chosen_words:
+                    thes_dict[str(words)] = query_dict[word]
+
+
+        query.query_length = len(thes_dict)
+        query.query_dict = thes_dict
+
+
+    def tag(self, tag):
+        if tag.startswith('J'):
+            return "ADJ"
+        elif tag.startswith('V'):
+            return "VERB"
+        else:
+            return "NOUN"
 
 
 class WordNet_Searcher:
@@ -251,38 +241,48 @@ class WordNet_Searcher:
         query_length = query.query_length
         syn = set()
         ant = set()
+        combined = []
 
+        # print(query_dict)
         wordnet_list = wordnet.synsets("Worse")
         for word in query_dict.keys():
-            wordnet_list = wordnet.synsets("Worse")
-            for synset in wordnet_list:
+            nltk_tag = nltk.pos_tag([word])
+            wordnet_tag = self.get_wordnet_pos(nltk_tag[0][1])
 
-                lemma = synset.lemmas()[0]
-                if lemma.name().lower() != word.lower():
-                    # print('Similarity of {} and {}: '.format("worse", lemma.name()) + str(wordnet.synset("worse.n.01").wup_similarity(synset)))
+            try:
+                wordnet_list = wordnet.synsets(word, pos=wordnet_tag)
+                synset = wordnet_list[0]
+                syn.add(synset.hyponyms()[0].lemmas()[0].name())
+                syn.add(synset.lemmas()[0].name())
 
-                    syn.add(lemma.name())  # add the synonyms
-                if lemma.antonyms():  # When antonyms are available, add them into the list
-                    ant.add(lemma.antonyms()[0].name())
+                if synset.lemmas()[0].antonyms():
+                    ant.add(synset.lemmas()[0].antonyms()[0].name())
+            except:
+                continue
 
-            # for i in syn:
-            #     synset_word = wordnet.synset("worse" + ".n.01")
-            #     synset_syn = wordnet.synset(i + ".n.01")
-            #     print('Similarity of {} and {}: '.format("worse", i) + str(synset_word.wup_similarity(synset_syn)))
-            #
-            # for i in ant:
-            #     synset_word = wordnet.synset("worse" + ".n.01")
-            #     synset_syn = wordnet.synset(i + ".n.01")
-            #     print('Similarity of {} and {}: '.format("worse", i) + str(synset_word.wup_similarity(synset_syn)))
-            x = 5
+            combined.append([word, syn | ant])
+            syn = set()
+            ant = set()
 
-            # first_word = wordnet.synset("better.n.01")
-            # second_word = wordnet.synset("worse.n.01")
-            # print('Similarity: ' + str(first_word.wup_similarity(second_word)))
+        for word_set in combined:
+            word = word_set[0]  # word itself
+            for term in word_set[1]:  # syns and ants for the word
+                if term in self._indexer.inverted_idx and term not in query_dict:
+                    query_dict[term] = query_dict[word]
+                    query_length += 1
 
-                # for words in word_to_switch:
-                #     if words in self._indexer.inverted_idx:
-                #         query_dict[words] = query_dict[word]
-                #         query_length += 1
-                #
-                # query.query_length = query_length
+        query.query_length = query_length
+        # print(query_dict)
+
+    def get_wordnet_pos(self, tag):
+
+        if tag.startswith('J'):
+            return wordnet.ADJ
+        elif tag.startswith('V'):
+            return wordnet.VERB
+        elif tag.startswith('N'):
+            return wordnet.NOUN
+        elif tag.startswith('R'):
+            return wordnet.ADV
+        else:
+            return wordnet.NOUN
