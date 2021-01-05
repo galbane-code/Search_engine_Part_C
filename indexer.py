@@ -54,7 +54,7 @@ class Indexer:
                 print('problem with the following key {}'.format(term[0]))
 
         if self.last_doc:
-            self.save_index("idx_bench")
+            self.save_index("idx_bench.pkl")
             self.save_spell("spell_dict")
 
     def date_diff(self, tweet_date):

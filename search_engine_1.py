@@ -134,6 +134,6 @@ def main():
             search_engine.last_parquet = True
         search_engine.build_index_from_parquet(parquet)
 
-    search_engine.load_index("idx_bench")
+    search_engine.load_index("idx_bench.pkl")
     search_engine.read_queries(queries_path)
 

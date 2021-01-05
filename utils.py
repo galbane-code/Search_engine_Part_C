@@ -17,7 +17,7 @@ def save_obj(obj, name):
     :param name: name of the pickle file.
     :return: -
     """
-    with open(name + '.pkl', 'wb') as f:
+    with open(name, 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
 

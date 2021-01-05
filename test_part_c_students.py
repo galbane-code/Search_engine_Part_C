@@ -155,6 +155,7 @@ if __name__ == '__main__':
                             f"{engine_module}'s recall for the following queries was zero {zero_recall_qs}.")
 
                 if q_results_labeled is not None:
+                    q_results_labeled.to_csv("tests.csv", index=False)
                     # test that MAP > 0
                     results_map = metrics.map(q_results_labeled)
                     logging.debug(f"{engine_module} results have MAP value of {results_map}.")
@@ -195,6 +196,7 @@ if __name__ == '__main__':
             except Exception as e:
                 logging.error(f'The following error occured while testing the module {engine_module}.')
                 logging.error(e, exc_info=True)
+
 
     except Exception as e:
         logging.error(e, exc_info=True)

@@ -112,8 +112,6 @@ class SearchEngine:
             row_bench = bench_mark.loc[bench_mark["tweet"] == tweet_id]
             row_results = our_results.loc[our_results["tweet"] == tweet_id]
 
-            print(row_bench["query"].iloc[0])
-            print(row_results["query"].iloc[0])
             if row_bench["query"].iloc[0] == row_results["query"].iloc[0]:
                 rank = row_bench["y_true"].iloc[0]
                 our_results.at[idx, "y_true"] = rank
@@ -136,6 +134,6 @@ def main():
         if idx == len(corpus_list) - 1:
             search_engine.last_parquet = True
         search_engine.build_index_from_parquet(parquet)
-    search_engine.load_index("idx_bench")
+    search_engine.load_index("idx_bench.pkl")
     search_engine.read_queries(queries_path)
 
