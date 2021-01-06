@@ -10,7 +10,7 @@ from query import query_object
 
 
 class Parse:
-    stemmer = False
+    STEMMER = True
     CAPITAL_LETTER_DICT = {}
     idx = 0
     ENTITY_DICT = {}
@@ -27,7 +27,7 @@ class Parse:
                                , "......", ".....", "//", "'ve", "N'T", "'ll", "S", "s", r' ', r'', r"", r"''"
                                ,r"’", r"‘", r"``", r"'", r"`", '"', r'""', r'"', r"“", r"”",
                                'rt', r'!', r'?', r',', r':', r';', r'(', r')', r'...', r'[', ']', r'{', '}' "'&'", '$',
-                               '.', r'\'s', '\'s', '\'d', r'\'d', r'n\'t','1️⃣.1️⃣2️⃣' ]
+                               '.', r'\'s', '\'s', '\'d', r'\'d', r'n\'t','1️⃣.1️⃣2️⃣', '~~', '...']
 
         self.additional = {"twitter.com", "web", "status", "i", r'i'}
         self.stop_words.extend(self.our_stop_words)
@@ -55,7 +55,7 @@ class Parse:
                     u"\ufe0f"u"\U0001F1E0-\U0001F1FF"u"\u2640-\u2642"u"\u200d"u"\U00002500-\U00002BEF"u"\U00010000-\U0010ffff"u"\U0001f926-\U0001f937"u"\U000024C2-\U0001F251"u"\u23cf"
                     u"\u23e9"u"\u231a"u"\u2600-\u2B55""]+", flags=re.UNICODE)
 
-    def parse_sentence(self, text):
+    def parse_sentence(self, text, query_tokenized=None):
         """
         This function tokenize, remove stop words and apply lower case for every word within the text
         :param text:
@@ -159,6 +159,7 @@ class Parse:
 
             elif is_date:  # date format
                 parsed_token_list = [token]
+                is_date = False
 
             elif len(number_as_list) != 0 and len(parsed_token_list) == 0:  #: numbers
                 if len(number_as_list) > 1:
@@ -191,7 +192,7 @@ class Parse:
 
             if len(parsed_token_list) > 0:
 
-                if self.stemmer:
+                if self.STEMMER:
                     parsed_token_list_stemmer = []
                     for word in parsed_token_list:
                         if word.isalpha():
@@ -216,25 +217,35 @@ class Parse:
                         self.max_freq_term = term_dict[term]
             #############################
             else:
-                garbage = token.isalnum()
-                if "//t" not in token and token not in self.dict_punctuation and garbage:
-                    token = token.lower()
+                # garbage = token.isalnum()
+                if "//t" not in token and token not in self.dict_punctuation and token not in self.stop_words_dict:
+                    is_ascii = self.check_ascii(token)
+                    if is_ascii:
+                        token = token.lower()
 
-                    if self.stemmer:
-                        token = self.snow_stemmer.stem(token)
+                        if self.STEMMER:
+                            token = self.snow_stemmer.stem(token)
 
-                    if token not in self.location_dict:
-                        self.location_dict[token] = [i]
-                    else:
-                        self.location_dict[token].append(i)
+                        if token not in self.location_dict:
+                            self.location_dict[token] = [i]
+                        else:
+                            self.location_dict[token].append(i)
 
-                    if token not in term_dict:
-                        term_dict[token] = 1
-                    else:
-                        term_dict[token] += 1
-                    if term_dict[token] > self.max_freq_term:
-                        self.max_freq_term = term_dict[token]
+                        if token not in term_dict:
+                            term_dict[token] = 1
+                        else:
+                            term_dict[token] += 1
+                        if term_dict[token] > self.max_freq_term:
+                            self.max_freq_term = term_dict[token]
+
         return term_dict
+
+    def check_ascii(self, token):
+        # if type(token) == int:
+        #     return True
+        # if len(token) == 0:
+        #     return False
+        return all((ord(char) > 32) and (ord(char) < 128) for char in token)
 
     def parse_query(self, query):
         """
@@ -243,11 +254,14 @@ class Parse:
         :return: query object with corresponding fields.
         """
         Parse.Parsing_a_word = True
+        query_tokenized = word_tokenize(query)
+        query_tokenized = [w for w in query_tokenized if w not in self.stop_words_dict]
         query_dict = self.parse_sentence(query)
+
         location_dict = self.location_dict
         max_freq = self.max_freq_term
         query_length = len(query_dict)
-        query = query_object(query_dict, query_length, max_freq, location_dict)
+        query = query_object(query_dict, query_length, max_freq, query_tokenized, location_dict)
         self.max_freq_term = 0
         self.term_dict = {}
         self.location_dict = {}
@@ -390,10 +404,9 @@ class Parse:
             url = self.split_url_pattern.findall(token)
             for i, elem in enumerate(url):
                 if 'www.' in elem:
-                    address = url[i].split('.', 1)
+                    address = url[i].split('.', 2)
                     url[i] = address[1]
                     to_return.extend([address[1]])
-
         return to_return
 
     def parse_numbers(self, number_as_str, word_before, word_after):

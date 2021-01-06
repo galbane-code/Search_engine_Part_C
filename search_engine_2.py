@@ -20,6 +20,7 @@ class SearchEngine:
         except:
             self._reader = ReadFile("")
         self._parser = Parse()
+        self._parser.STEMMER = config.toStem
         self._indexer = Indexer(config)
         self._model = WordNet_Searcher(self._indexer)
         self.last_parquet = False
@@ -86,7 +87,7 @@ class SearchEngine:
 
     def read_queries(self, queries_path, k=None):
         queries_df = pd.read_csv(queries_path, sep='\t')
-        queries_only = queries_df["keywords"]
+        queries_only = queries_df["information_need"]
         queries_id = queries_df["query_id"]
 
         csv_list = [['query', 'tweet', 'y_true']]
@@ -129,11 +130,11 @@ def main():
     search_engine = SearchEngine(config)
     corpus_list = reader.read_corpus()
 
-    for idx, parquet in enumerate(corpus_list):
+    for idx, parquet in enumerate(corpus_list):  # BUILDING THE INDEXER
         if idx == len(corpus_list) - 1:
             search_engine.last_parquet = True
         search_engine.build_index_from_parquet(parquet)
 
-    search_engine.load_index("idx_bench.pkl")
+    search_engine.load_index("idx_bench.pkl")  # QUERIES RUN ONLY
     search_engine.read_queries(queries_path)
 

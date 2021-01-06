@@ -20,6 +20,7 @@ class SearchEngine:
         except:
             self._reader = ReadFile("")
         self._parser = Parse()
+        self._parser.STEMMER = config.toStem
         self._indexer = Indexer(config)
         self._model = Thesaurus_Searcher(self._indexer)
         self.last_parquet = False

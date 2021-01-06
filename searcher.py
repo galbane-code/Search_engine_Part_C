@@ -244,19 +244,27 @@ class WordNet_Searcher:
         combined = []
 
         # print(query_dict)
-        wordnet_list = wordnet.synsets("Worse")
-        for word in query_dict.keys():
-            nltk_tag = nltk.pos_tag([word])
-            wordnet_tag = self.get_wordnet_pos(nltk_tag[0][1])
+        pos_list = nltk.pos_tag(query.tokenized_text)
+
+        # wordnet_list = wordnet.synsets("Worse")
+        for i, word in enumerate(query_dict.keys()):
+            wordnet_tag = self.get_wordnet_pos(pos_list[i][1])
 
             try:
                 wordnet_list = wordnet.synsets(word, pos=wordnet_tag)
                 synset = wordnet_list[0]
                 syn.add(synset.hyponyms()[0].lemmas()[0].name())
+                # syn.add(synset.hypernyms()[0].lemmas()[0].name())
                 syn.add(synset.lemmas()[0].name())
 
                 if synset.lemmas()[0].antonyms():
                     ant.add(synset.lemmas()[0].antonyms()[0].name())
+            except:
+                continue
+
+            try:
+                syn.add(synset.hyponyms()[1].lemmas()[0].name())
+                syn.add(synset.lemmas()[1].name())
             except:
                 continue
 
