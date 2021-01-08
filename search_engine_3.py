@@ -5,7 +5,7 @@ from reader import ReadFile
 from configuration import ConfigClass
 from parser_module import Parse
 from indexer import Indexer
-from searcher import Searcher, WordNet_Searcher
+from searcher import Searcher, Spell_Searcher
 
 
 # DO NOT CHANGE THE CLASS NAME
@@ -22,7 +22,7 @@ class SearchEngine:
         self._parser = Parse()
         self._parser.STEMMER = config.toStem
         self._indexer = Indexer(config)
-        self._model = WordNet_Searcher(self._indexer)
+        self._model = Spell_Searcher(self._indexer)
         self.last_parquet = False
 
     # DO NOT MODIFY THIS SIGNATURE
@@ -85,57 +85,56 @@ class SearchEngine:
         searcher = Searcher(self._parser, self._indexer, model=self._model)
         return searcher.search(query, 1500)
 
-#     def read_queries(self, queries_path, k=None):
-#         queries_df = pd.read_csv(queries_path, sep='\t')
-#         queries_only = queries_df["information_need"]
-#         queries_id = queries_df["query_id"]
-#
-#         csv_list = [['query', 'tweet', 'y_true']]
-#         for i, query in enumerate(queries_only):
-#             length_of_results, tweets = self.search(query)
-#             query_num = queries_id[i]
-#             for tweet in tweets:
-#                 csv_line = [query_num, tweet, -1]
-#                 csv_list.append(csv_line)
-#             break
-#
-#         with open('wordNet_engine_results.csv', 'w', newline='') as file:
-#             writer = csv.writer(file)
-#             writer.writerows(csv_list)
-#
-#         self.calculate_metrics()
-#
-#     def calculate_metrics(self):
-#         our_results = pd.read_csv("wordNet_engine_results.csv")
-#         bench_mark = pd.read_csv(os.path.join('data', 'benchmark_lbls_train.csv'))
-#
-#         for idx, tweet_id in enumerate(our_results["tweet"]):
-#             row_bench = bench_mark.loc[bench_mark["tweet"] == tweet_id]
-#             row_results = our_results.loc[our_results["tweet"] == tweet_id]
-#
-#             if row_bench["query"].iloc[0] == row_results["query"].iloc[0]:
-#                 rank = row_bench["y_true"].iloc[0]
-#                 our_results.at[idx, "y_true"] = rank
-#
-#         our_results.to_csv("wordNet_engine_results.csv", index=False)
-#
-#
+    # def read_queries(self, queries_path, k=None):
+    #     queries_df = pd.read_csv(queries_path, sep='\t')
+    #     queries_only = queries_df["keywords"]
+    #     queries_id = queries_df["query_id"]
+    #
+    #     csv_list = [['query', 'tweet', 'y_true']]
+    #     for i, query in enumerate(queries_only):
+    #         length_of_results, tweets = self.search(query)
+    #         query_num = queries_id[i]
+    #         for tweet in tweets:
+    #             csv_line = [query_num, tweet, -1]
+    #             csv_list.append(csv_line)
+    #         break
+    #
+    #     with open('spell_engine_results.csv', 'w', newline='') as file:
+    #         writer = csv.writer(file)
+    #         writer.writerows(csv_list)
+    #
+    #     self.calculate_metrics()
+
+    # def calculate_metrics(self):
+    #     our_results = pd.read_csv("spell_engine_results.csv")
+    #     bench_mark = pd.read_csv(os.path.join('data', 'benchmark_lbls_train.csv'))
+    #
+    #     for idx, tweet_id in enumerate(our_results["tweet"]):
+    #         row_bench = bench_mark.loc[bench_mark["tweet"] == tweet_id]
+    #         row_results = our_results.loc[our_results["tweet"] == tweet_id]
+    #
+    #         if row_bench["query"].iloc[0] == row_results["query"].iloc[0]:
+    #             rank = row_bench["y_true"].iloc[0]
+    #             our_results.at[idx, "y_true"] = rank
+    #
+    #     our_results.to_csv("spell_engine_results.csv", index=False)
+
+
 # def main():
-#     pass
     # bench_data_path = os.path.join('data', 'benchmark_data_train.snappy.parquet')
     # bench_lbls_path = os.path.join('data', 'benchmark_lbls_train.csv')
     # queries_path = os.path.join('data', 'queries_train.tsv')
+    #
     #
     # config = ConfigClass()
     # reader = ReadFile(config.get__corpusPath())
     # search_engine = SearchEngine(config)
     # corpus_list = reader.read_corpus()
     #
-    # for idx, parquet in enumerate(corpus_list):  # BUILDING THE INDEXER
+    # for idx, parquet in enumerate(corpus_list):
     #     if idx == len(corpus_list) - 1:
     #         search_engine.last_parquet = True
     #     search_engine.build_index_from_parquet(parquet)
-    #
-    # search_engine.load_index("idx_bench.pkl")  # QUERIES RUN ONLY
+    # search_engine.load_index("idx_bench.pkl")
     # search_engine.read_queries(queries_path)
 

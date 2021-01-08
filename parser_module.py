@@ -10,7 +10,6 @@ from query import query_object
 
 
 class Parse:
-    STEMMER = True
     CAPITAL_LETTER_DICT = {}
     idx = 0
     ENTITY_DICT = {}

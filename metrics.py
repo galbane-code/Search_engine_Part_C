@@ -1,10 +1,12 @@
 import pandas as pd
 from functools import reduce
 
+DF = pd.DataFrame(columns=['Avg Precision', 'Precision@5', 'Precision@10', 'Precision@50', 'Recall'])
+
 
 # precision(df, True, 1) == 0.5
 # precision(df, False, None) == 0.5
-def precision(df, single=False, query_number=None):
+def precision(df, single=False, query_number=None, head=None):
     """
         This function will calculate the precision of a given query or of the entire DataFrame
         :param df: DataFrame: Contains tweet ids, their scores, ranks and relevance
@@ -16,6 +18,15 @@ def precision(df, single=False, query_number=None):
         df2 = df[df['query'] == query_number]
         return df2['y_true'].mean()
     else:
+        x = df.groupby('query')['y_true'].mean()
+        if head == 5:
+            DF['Precision@5'] = x
+        if head == 10:
+            DF['Precision@10'] = x
+        if head == 50:
+            DF['Precision@50'] = x
+        else:
+            DF['Avg Precision'] = x
         return df.groupby('query')['y_true'].mean().mean()
 
 
@@ -41,9 +52,14 @@ def recall(df, num_of_relevant):
         :return: Double - The recall
     """
     rec = 0
+    lst = []
     for query_number in num_of_relevant.keys():
         relevant = num_of_relevant.get(query_number)
-        rec += recall_single(df, relevant, query_number)
+        recall = recall_single(df, relevant, query_number)
+        rec += recall
+        lst.append(recall)
+    series = pd.Series(lst)
+    DF['Recall'] = series
     return rec / len(num_of_relevant)
 
 
@@ -57,6 +73,7 @@ def precision_at_n(df, query_number=1, n=5):
         :param n: Total document to splice from the df
         :return: Double: The precision of those n documents
     """
+
     return precision(df[df['query'] == query_number][:n], True, query_number)
 
 
@@ -74,4 +91,3 @@ def map(df):
         pres = [precision_at_n(split_df[i], i + 1, index + 1) for index in indexes]
         acc += reduce(lambda a, b: a + b, pres) / len(indexes) if len(pres) > 0 else 0
     return acc / len(split_df)
-    

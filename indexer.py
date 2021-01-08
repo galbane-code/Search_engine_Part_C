@@ -54,8 +54,8 @@ class Indexer:
                 print('problem with the following key {}'.format(term[0]))
 
         if self.last_doc:
+            self.remove_capital_entity()
             self.save_index("idx_bench.pkl")
-            self.save_spell("spell_dict")
 
     def date_diff(self, tweet_date):
         current_time = datetime.now()
@@ -66,31 +66,42 @@ class Indexer:
         date_in_minutes = int((date_sub.days * 60 * 24) + (date_sub.seconds // 3600))
         return date_in_minutes
 
-    def remove_capital_entity(self, key, merge_dict):
+    def remove_capital_entity(self):
 
-        if key in Parse.ENTITY_DICT and Parse.ENTITY_DICT[key] < 2:
-            if key in self.inverted_idx:
-                del self.inverted_idx[key]
-                del merge_dict[key]
+        keys_to_remove = {'covid', '19', 'mask', 'wear', 'coronavirus', 'virus'}
+        for key in self.inverted_idx:
+            if key in Parse.ENTITY_DICT and Parse.ENTITY_DICT[key] < 2:
+                if key in self.inverted_idx:
+                    # del self.inverted_idx[key]
+                    # del self.postingDict[key]
+                    keys_to_remove.add(key)
 
-        elif key in Parse.CAPITAL_LETTER_DICT and Parse.CAPITAL_LETTER_DICT[key] is False:
-            if key in self.inverted_idx:
-                count_docs = self.inverted_idx[key]
-                posting_file = merge_dict[key]
-                del self.inverted_idx[key]
-                del merge_dict[key]
+            elif key in Parse.CAPITAL_LETTER_DICT and Parse.CAPITAL_LETTER_DICT[key] is False:
+                if key in self.inverted_idx:
+                    count_docs = self.inverted_idx[key]
+                    posting_file = self.postingDict[key]
+                    # del self.inverted_idx[key]
+                    # del self.postingDict[key]
+                    keys_to_remove.add(key)
 
-                if key.lower() in merge_dict:
-                    self.inverted_idx[key.lower()] += count_docs
-                    merge_dict[key.lower()].extend(posting_file)
-                else:
-                    self.not_finished_capital[key.lower] = [count_docs, posting_file]
+                    if key.lower() in self.postingDict:
+                        self.inverted_idx[key.lower()] += count_docs
+                        self.postingDict[key.lower()].extend(posting_file)
+                    else:
+                        self.not_finished_capital[key.lower] = [count_docs, posting_file]
 
-        if key in self.not_finished_capital:
-            count_docs_to_delete = self.not_finished_capital[key][0]
-            posting_dict_to_delete = self.not_finished_capital[key][1]
-            self.inverted_idx[key.lower()] += count_docs_to_delete
-            merge_dict[key.lower()].extend(posting_dict_to_delete)
+            if key in self.not_finished_capital:
+                count_docs_to_delete = self.not_finished_capital[key][0]
+                posting_dict_to_delete = self.not_finished_capital[key][1]
+                self.inverted_idx[key.lower()] += count_docs_to_delete
+                self.postingDict[key.lower()].extend(posting_dict_to_delete)
+
+            if self.inverted_idx[key] == 1:
+                keys_to_remove.add(key)
+
+        for key in keys_to_remove:
+            del self.inverted_idx[key]
+            del self.postingDict[key]
 
     # DO NOT MODIFY THIS SIGNATURE
     # You can change the internal implementation as you see fit.

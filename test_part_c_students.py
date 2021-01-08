@@ -9,6 +9,7 @@ if __name__ == '__main__':
     import timeit
     import importlib
     import logging
+    import pandas
 
     logging.basicConfig(filename='part_c_tests.log', level=logging.DEBUG,
                         filemode='w', format='%(levelname)s %(asctime)s: %(message)s')
@@ -83,7 +84,8 @@ if __name__ == '__main__':
                 logging.error('model.zip file does not exists.')
 
         # test for each search engine module
-        engine_modules = ['search_engine_' + name for name in ['1', '2', 'best']]
+        avg_maps = []
+        engine_modules = ['search_engine_' + name for name in ['best']]
         for engine_module in engine_modules:
             try:
                 # does the module file exist?
@@ -155,7 +157,7 @@ if __name__ == '__main__':
                             f"{engine_module}'s recall for the following queries was zero {zero_recall_qs}.")
 
                 if q_results_labeled is not None:
-                    q_results_labeled.to_csv("tests.csv", index=False)
+                    # q_results_labeled.to_csv("tests.csv", index=False)
                     # test that MAP > 0
                     results_map = metrics.map(q_results_labeled)
                     logging.debug(f"{engine_module} results have MAP value of {results_map}.")
@@ -167,10 +169,13 @@ if __name__ == '__main__':
                     # is in [0,1].
                     prec, p5, p10, p50, recall = \
                         metrics.precision(q_results_labeled), \
-                        metrics.precision(q_results_labeled.groupby('query').head(5)), \
-                        metrics.precision(q_results_labeled.groupby('query').head(10)), \
-                        metrics.precision(q_results_labeled.groupby('query').head(50)), \
+                        metrics.precision(q_results_labeled.groupby('query').head(5), head=5), \
+                        metrics.precision(q_results_labeled.groupby('query').head(10), head=10), \
+                        metrics.precision(q_results_labeled.groupby('query').head(50), head=50), \
                         metrics.recall(q_results_labeled, q2n_relevant)
+                    # metrics.DF.to_csv("{}.csv".format(engine_module), index=False)
+                    avg_maps.append([engine_module, results_map, prec, p5, p10, p50, recall])
+
                     logging.debug(f"{engine_module} results produced average precision of {prec}.")
                     logging.debug(f"{engine_module} results produced average precision@5 of {p5}.")
                     logging.debug(f"{engine_module} results produced average precision@10 of {p10}.")
@@ -186,7 +191,6 @@ if __name__ == '__main__':
                         logging.error(f"The average precision@50 for {engine_module} is out of range [0,1].")
                     if recall < 0 or recall > 1:
                         logging.error(f"The average recall for {engine_module} is out of range [0,1].")
-
                 if engine_module == 'search_engine_best' and \
                         test_file_exists('idx_bench.pkl'):
                     logging.info('idx_bench.pkl found!')
@@ -197,7 +201,8 @@ if __name__ == '__main__':
                 logging.error(f'The following error occured while testing the module {engine_module}.')
                 logging.error(e, exc_info=True)
 
-
+        data = pandas.DataFrame(avg_maps)
+        data.to_csv("all_engines.csv", index=False)
     except Exception as e:
         logging.error(e, exc_info=True)
 

@@ -1,3 +1,4 @@
+import copy
 import math
 import time
 
@@ -10,6 +11,8 @@ from ranker import Ranker
 # nltk.download('averaged_perceptron_tagger')
 from nltk.corpus import lin_thesaurus as thesaurus
 from nltk.corpus import wordnet
+from nltk.stem.snowball import SnowballStemmer
+
 
 # DO NOT MODIFY CLASS NAME
 class Searcher:
@@ -153,13 +156,13 @@ class Spell_Searcher:
 
                     for i, candidate in enumerate(candidates):
                         if candidate in self._indexer.inverted_idx:
-                            curr_freq = self._indexer.inverted_idx[candidate][0]
+                            curr_freq = self._indexer.inverted_idx[candidate]
                             if curr_freq > max_freq_in_corpus:
                                 max_freq_in_corpus = curr_freq
                                 max_freq_name = candidate
 
                         elif candidate.upper() in self._indexer.inverted_idx:
-                            curr_freq = self._indexer.inverted_idx[candidate.upper()][0]
+                            curr_freq = self._indexer.inverted_idx[candidate.upper()]
                             if curr_freq > max_freq_in_corpus:
                                 max_freq_in_corpus = curr_freq
                                 max_freq_name = candidate
@@ -243,7 +246,6 @@ class WordNet_Searcher:
         ant = set()
         combined = []
 
-        # print(query_dict)
         pos_list = nltk.pos_tag(query.tokenized_text)
 
         # wordnet_list = wordnet.synsets("Worse")
@@ -254,7 +256,7 @@ class WordNet_Searcher:
                 wordnet_list = wordnet.synsets(word, pos=wordnet_tag)
                 synset = wordnet_list[0]
                 syn.add(synset.hyponyms()[0].lemmas()[0].name())
-                # syn.add(synset.hypernyms()[0].lemmas()[0].name())
+                syn.add(synset.hypernyms()[0].lemmas()[0].name())
                 syn.add(synset.lemmas()[0].name())
 
                 if synset.lemmas()[0].antonyms():
@@ -294,3 +296,15 @@ class WordNet_Searcher:
             return wordnet.ADV
         else:
             return wordnet.NOUN
+
+
+class Mix_Searcher:
+
+    def __init__(self, indexer):
+        self._indexer = indexer
+        self._model_2 = WordNet_Searcher(indexer)
+        self._model_1 = Spell_Searcher(indexer)
+
+    def query_expansion(self, query):
+        self._model_1.query_expansion(query)  # spell checker and than wordnet
+        self._model_2.query_expansion(query)
