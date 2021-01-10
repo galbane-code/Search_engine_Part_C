@@ -9,11 +9,13 @@ class Ranker:
     @staticmethod
     def rank_relevant_docs(relevant_docs, normalized_query, inverted_documents_dict, k=None):
         """
-        This function provides rank for each relevant document and sorts them by their scores.
-        The current score considers solely the number of terms shared by the tweet (full_text) and query.
-        :param k: number of most relevant docs to return, default to everything.
-        :param relevant_docs: dictionary of documents that contains at least one term from the query.
-        :return: sorted list of documents by score
+        calculates cosine similarity over doc-query pair ranked by tf-idf.
+        then, sorts by highest doc score and returns k most relevant docs.
+        :param relevant_docs:
+        :param normalized_query:
+        :param inverted_documents_dict:
+        :param k:
+        :return:
         """
         ranked_docs_dict = {}
 

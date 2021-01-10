@@ -5,37 +5,49 @@ from nltk.tokenize import word_tokenize
 from document import Document
 import json
 from nltk.stem.snowball import SnowballStemmer
-
 from query import query_object
 
 
 class Parse:
-    CAPITAL_LETTER_DICT = {}
-    idx = 0
-    ENTITY_DICT = {}
-    Parsing_a_word = False
+    """This Class Handel's The Parsing of the Tweets. """
+
+    CAPITAL_LETTER_DICT = {}  # keeps all the terms with the capital letters in the corpus
+    ENTITY_DICT = {}  # keeps all the Entities in the corpus
+    Parsing_a_word = False  # a Boolean to check if we parse a doc or a query
     AMOUNT_OF_NUMBERS_IN_CORPUS = 0
 
     def __init__(self):
+
+        # All the Data structure for the Parsing process
+
         self.problem_terms_to_check = []
         self.max_freq_term = 0
         self.term_dict = {}
+        self.tokens = None
+        self.location_dict = {}
+        self.snow_stemmer = SnowballStemmer(language='english')
+        self.is_num_after_num = False
+
+        ####################################################################
+
+        # All the stop words handling
+
         self.stop_words = stopwords.words('english')
         self.our_stop_words = ["RT", "http", "https", r"", r"'", r"''", r'"', '``', '’', r'', r"", '...', '…', '', r'"',
                                "twitter.com", "web", "status", "i", r'i', "n't", "--", "'re", "..", "'it", "'m"
-                               , "......", ".....", "//", "'ve", "N'T", "'ll", "S", "s", r' ', r'', r"", r"''"
-                               ,r"’", r"‘", r"``", r"'", r"`", '"', r'""', r'"', r"“", r"”",
+            , "......", ".....", "//", "'ve", "N'T", "'ll", "S", "s", r' ', r'', r"", r"''"
+            , r"’", r"‘", r"``", r"'", r"`", '"', r'""', r'"', r"“", r"”",
                                'rt', r'!', r'?', r',', r':', r';', r'(', r')', r'...', r'[', ']', r'{', '}' "'&'", '$',
-                               '.', r'\'s', '\'s', '\'d', r'\'d', r'n\'t','1️⃣.1️⃣2️⃣', '~~', '...']
+                               '.', r'\'s', '\'s', '\'d', r'\'d', r'n\'t', '1️⃣.1️⃣2️⃣', '~~', '...']
 
         self.additional = {"twitter.com", "web", "status", "i", r'i'}
         self.stop_words.extend(self.our_stop_words)
         self.stop_words_dict = dict.fromkeys(self.stop_words)
-        self.tokens = None
-        self.is_num_after_num = False
         self.dict_punctuation = dict.fromkeys(string.punctuation)
-        self.location_dict = {}
-        self.snow_stemmer = SnowballStemmer(language='english')
+
+        ####################################################################
+
+        # Re Pattern's
 
         self.number_pattern = re.compile("[-+]?[\d]+(?:\.\d+)?/[-+]?[\d]+(?:\.\d+)?\w?[k|K|m|M|b|B]?"
                                          "|[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?[k|K|m|M|b|B]?")
@@ -54,14 +66,15 @@ class Parse:
                     u"\ufe0f"u"\U0001F1E0-\U0001F1FF"u"\u2640-\u2642"u"\u200d"u"\U00002500-\U00002BEF"u"\U00010000-\U0010ffff"u"\U0001f926-\U0001f937"u"\U000024C2-\U0001F251"u"\u23cf"
                     u"\u23e9"u"\u231a"u"\u2600-\u2B55""]+", flags=re.UNICODE)
 
-    def parse_sentence(self, text, query_tokenized=None):
+        ####################################################################
+
+    def parse_sentence(self, text):
         """
-        This function tokenize, remove stop words and apply lower case for every word within the text
-        :param text:
-        :return:
+        This function tokenizes, removes stop words and applies lower case for every word within the text
+        :param text: the final text to parse for the query or the doc
+        :return: term_dict: a dict contains the parsed terms as keys and the values are the frequency of the term in the doc or the query
         """
 
-        # TODO: how to split the urls and what is need to do different
         text_tokens = word_tokenize(text)
         text_tokens_without_stopwords = [w for w in text_tokens if w not in self.stop_words_dict]
         self.tokens = text_tokens_without_stopwords
@@ -70,11 +83,13 @@ class Parse:
         count_num_in_a_row = 0
         entity_counter = 1
         is_date = False
+
         term_dict = {}
         if not Parse.Parsing_a_word:
             term_dict = self.term_dict
 
         if Parse.Parsing_a_word:
+            # if we parse a query we split the urls
             broken_urls = self.url_pattern_query.findall(text)
             broken_urls = self.parse_url_text(broken_urls)
             for term in broken_urls:
@@ -136,7 +151,7 @@ class Parse:
                 if entity_str != "":
                     parsed_token_list.append(token)
                     if not Parse.Parsing_a_word:
-                        if token not in Parse.CAPITAL_LETTER_DICT.keys():
+                        if token not in Parse.ENTITY_DICT.keys():
                             Parse.ENTITY_DICT[token] = 1
                         else:
                             Parse.ENTITY_DICT[token] += 1
@@ -183,14 +198,14 @@ class Parse:
                 else:
                     parsed_token_list = number_as_list
 
-            elif "/" in token and "//t" not in token:
+            elif "/" in token and "//t" not in token:  # split for token that contains //t or /
                 split_slash = token.split("/")
                 for word in split_slash:
                     if len(word) > 1:
                         parsed_token_list.append(word)
 
             if len(parsed_token_list) > 0:
-
+                # if we use one of the parsing rules we add the tokens into the data structure accordingly
                 if self.STEMMER:
                     parsed_token_list_stemmer = []
                     for word in parsed_token_list:
@@ -214,9 +229,9 @@ class Parse:
                         term_dict[term] += 1
                     if term_dict[term] > self.max_freq_term:
                         self.max_freq_term = term_dict[term]
-            #############################
+
             else:
-                # garbage = token.isalnum()
+                # if we did not use one of the parsing rules we add the tokens into the data structure accordingly
                 if "//t" not in token and token not in self.dict_punctuation and token not in self.stop_words_dict:
                     is_ascii = self.check_ascii(token)
                     if is_ascii:
@@ -240,10 +255,6 @@ class Parse:
         return term_dict
 
     def check_ascii(self, token):
-        # if type(token) == int:
-        #     return True
-        # if len(token) == 0:
-        #     return False
         return all((ord(char) > 32) and (ord(char) < 128) for char in token)
 
     def parse_query(self, query):
@@ -288,17 +299,12 @@ class Parse:
         retweet_quoted_urls = doc_as_list[12]
         retweet_quoted_indices = doc_as_list[13]
 
-        ########################################
-        # TODO: check if indices needed
-        # indices_as_list = self.indices_as_list(indices)
-        # indices_retweet_as_list = self.indices_as_list(retweet_indices)
-        # indices_quoted_as_list = self.indices_as_list(quoted_indices)
-        # indices_retweet_quoted_as_list = self.indices_as_list(retweet_quoted_indices)
-
-        raw_urls = self.parse_raw_url(urls, retweet_urls, quote_urls, retweet_quoted_urls, full_text)
+        raw_urls = self.parse_raw_url(urls, retweet_urls, quote_urls, retweet_quoted_urls,
+                                      full_text)  # concatenate_tweets urls
         broken_urls = self.parse_url_text(raw_urls)
 
         for term in broken_urls:
+            # split the urls for the doc
             if "http" not in term and term not in self.additional:
                 if term.isalpha():
                     if term[0].isupper():
@@ -313,12 +319,13 @@ class Parse:
                 if self.term_dict[term] > self.max_freq_term:
                     self.max_freq_term = self.term_dict[term]
 
-        concatenated_text = self.concatenate_tweets(full_text, retweet_text, retweet_quoted_text, quoted_text)
+        concatenated_text = self.concatenate_tweets(full_text, retweet_text, retweet_quoted_text,
+                                                    quoted_text)  # concatenate_tweets text
         concatenated_text = self.non_latin_pattern.sub('', concatenated_text)
         term_dict = self.parse_sentence(concatenated_text)
 
         doc_length = len(self.tokens)  # after text operations.
-        Parse.idx += 1
+
         document = Document(tweet_id, tweet_date, full_text, urls, retweet_text, retweet_urls, quoted_text,
                             quote_urls, term_dict, self.location_dict, doc_length, self.max_freq_term)
 
@@ -580,7 +587,10 @@ class Parse:
         return tweet_to_return
 
     def istitle_with_hyphen(self, token):
-
+        """
+        :param token: example --> 'Tweet-toParse'
+        :return: true or false whether the token contains a hyphen and the token start with a capital letter
+        """
         if "-" in token:
             hyphen_index = token.find("-")
             before_hyphen = token[:hyphen_index]
@@ -589,53 +599,3 @@ class Parse:
                 return True
 
         return False
-
-
-# from nltk.corpus import stopwords
-# from nltk.tokenize import word_tokenize
-# from document import Document
-#
-#
-# class Parse:
-#
-#     def __init__(self):
-#         self.stop_words = frozenset(stopwords.words('english'))
-#
-#     def parse_sentence(self, text):
-#         """
-#         This function tokenize, remove stop words and apply lower case for every word within the text
-#         :param text:
-#         :return:
-#         """
-#         text_tokens = word_tokenize(text)
-#         text_tokens_without_stopwords = [w.lower() for w in text_tokens if w not in self.stop_words]
-#         return text_tokens_without_stopwords
-#
-#     def parse_doc(self, doc_as_list):
-#         """
-#         This function takes a tweet document as list and break it into different fields
-#         :param doc_as_list: list re-presenting the tweet.
-#         :return: Document object with corresponding fields.
-#         """
-#         tweet_id = doc_as_list[0]
-#         tweet_date = doc_as_list[1]
-#         full_text = doc_as_list[2]
-#         url = doc_as_list[3]
-#         retweet_text = doc_as_list[4]
-#         retweet_url = doc_as_list[5]
-#         quote_text = doc_as_list[6]
-#         quote_url = doc_as_list[7]
-#         term_dict = {}
-#         tokenized_text = self.parse_sentence(full_text)
-#
-#         doc_length = len(tokenized_text)  # after text operations.
-#
-#         for term in tokenized_text:
-#             if term not in term_dict.keys():
-#                 term_dict[term] = 1
-#             else:
-#                 term_dict[term] += 1
-#
-#         document = Document(tweet_id, tweet_date, full_text, url, retweet_text, retweet_url, quote_text,
-#                             quote_url, term_dict, doc_length)
-#         return document

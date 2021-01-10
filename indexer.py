@@ -1,6 +1,5 @@
 # DO NOT MODIFY CLASS NAME
 from datetime import datetime
-
 import utils
 from parser_module import Parse
 
@@ -23,7 +22,8 @@ class Indexer:
     def add_new_doc(self, document):
         """
         This function perform indexing process for a document object.
-        Saved information is captures via two dictionaries ('inverted index' and 'posting')
+        Saved information is captured via two dictionaries ('inverted index' and 'posting')
+        in addition, Spell Correction dictionary is saved.
         :param document: a document need to be indexed.
         :return: -
         """
@@ -55,9 +55,15 @@ class Indexer:
 
         if self.last_doc:
             self.remove_capital_entity()
-            self.save_index("idx_bench.pkl")
+            self.save_index("inverted_idx.pkl")
+            self.save_spell("spell_dict.json")
 
     def date_diff(self, tweet_date):
+        """
+        calculates tweet date in minutes
+        :param tweet_date:
+        :return:
+        """
         current_time = datetime.now()
 
         tweet_date_as_a_DATE = datetime.strptime(tweet_date, '%a %b %d %H:%M:%S +0000 %Y')
@@ -67,21 +73,23 @@ class Indexer:
         return date_in_minutes
 
     def remove_capital_entity(self):
-
+        """
+        when indexing is finished, we remove entities that appear in the corpus
+        less then 2 times, 5 most frequent words in the corpus.
+        in addition, words with upper_case appearance that have lower-case appearance, are removed
+        and their values are added to the lower-case terms.
+        :return:
+        """
         keys_to_remove = {'covid', '19', 'mask', 'wear', 'coronavirus', 'virus'}
         for key in self.inverted_idx:
             if key in Parse.ENTITY_DICT and Parse.ENTITY_DICT[key] < 2:
                 if key in self.inverted_idx:
-                    # del self.inverted_idx[key]
-                    # del self.postingDict[key]
                     keys_to_remove.add(key)
 
             elif key in Parse.CAPITAL_LETTER_DICT and Parse.CAPITAL_LETTER_DICT[key] is False:
                 if key in self.inverted_idx:
                     count_docs = self.inverted_idx[key]
                     posting_file = self.postingDict[key]
-                    # del self.inverted_idx[key]
-                    # del self.postingDict[key]
                     keys_to_remove.add(key)
 
                     if key.lower() in self.postingDict:
