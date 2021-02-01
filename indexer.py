@@ -56,7 +56,7 @@ class Indexer:
         if self.last_doc:
             self.remove_capital_entity()
             self.save_index("inverted_idx.pkl")
-            self.save_spell("spell_dict.json")
+            self.save_spell("spell_dict")
 
     def date_diff(self, tweet_date):
         """

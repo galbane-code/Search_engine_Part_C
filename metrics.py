@@ -21,9 +21,9 @@ def precision(df, single=False, query_number=None, head=None):
         x = df.groupby('query')['y_true'].mean()
         if head == 5:
             DF['Precision@5'] = x
-        if head == 10:
+        elif head == 10:
             DF['Precision@10'] = x
-        if head == 50:
+        elif head == 50:
             DF['Precision@50'] = x
         else:
             DF['Avg Precision'] = x
